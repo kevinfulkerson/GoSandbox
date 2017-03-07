@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"reflect"
 )
 
 var filename = "res/test.txt"
+var fields = []string{"third", "third_first", "third_first_first", "third_first_first_value2"}
 
 func main() {
 	// Read in the file using the basic utility method
@@ -24,51 +24,28 @@ func main() {
 	}
 
 	// Dump the entire string
-	fmt.Printf("map value:\n%v\n\n", fileMap)
-
-	// TODO: clean up the following and make it generic
-	// Print out a value from the structure
-	third := fileMap["third"]
-	fmt.Printf("third:\n%v\n\n", third)
-
-	// Use a type assertion to extract the map to use again
-	thirdMap, ok := third.(map[interface{}]interface{})
-	if !ok {
-		// Not sure what to use here...
-		panic(-1)
-	}
+	fmt.Printf("parsed contents:\n%v\n\n", fileMap)
 
 	// Print out a value from the structure
-	third_first := thirdMap["third_first"]
-	fmt.Printf("third_first:\n%v\n\n", third_first)
+	third := fileMap[fields[0]]
+	fmt.Printf("%s:\n%v\n\n", fields[0], third)
 
-	// Use another type assertion
-	thirdFirstMap, ok := third_first.(map[interface{}]interface{})
-	if !ok {
-		// Not sure what to use here...
-		panic(-2)
+	currentStructure := fileMap[fields[0]]
+	for i := 1; i < len(fields); i++ {
+		// Use a type assertion to attempt to extract some type of value
+		localMap, isMap := currentStructure.(map[interface{}]interface{})
+		localSlice, isSlice := currentStructure.([]interface{})
+
+		// TODO: consider other cases here?
+		switch {
+		case isMap:
+			// This was a map of blank interfaces
+			currentStructure = localMap[fields[i]]
+			fmt.Printf("%s:\n%v\n\n", fields[i], currentStructure)
+		case isSlice:
+			// This was a slice of blank interfaces
+			value := localSlice[1]
+			fmt.Printf("value:\n%d\n\n", value)
+		}
 	}
-
-	// Print out a value from the structure
-	third_first_first := thirdFirstMap["third_first_first"]
-	fmt.Printf("third_first_first:\n%v\n\n", third_first_first)
-
-	// Reflect the value out of the interface, if possible
-	reflectedValue := reflect.ValueOf(third_first_first)
-	if reflectedValue.Kind() != reflect.Slice {
-		// Not sure what to use here...
-		panic(-3)
-	}
-
-	// Make a new slice with the same size as the existing slice
-	thirdFirstFirstSlice := make([]interface{}, reflectedValue.Len())
-
-	// Copy the values
-	for i := 0; i < reflectedValue.Len(); i++ {
-		thirdFirstFirstSlice[i] = reflectedValue.Index(i).Interface()
-	}
-
-	// Print out a value from the structure
-	third_first_first_value2 := thirdFirstFirstSlice[1]
-	fmt.Printf("third_first_first_value2:\n%d\n\n", third_first_first_value2)
 }
