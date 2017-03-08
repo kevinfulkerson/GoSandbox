@@ -7,7 +7,6 @@ import (
 )
 
 var filename = "res/test.txt"
-var fields = []string{"third", "third_first", "third_first_first", "third_first_first_value2"}
 
 func main() {
 	// Read in the file using the basic utility method
@@ -24,28 +23,33 @@ func main() {
 	}
 
 	// Dump the entire string
-	fmt.Printf("parsed contents:\n%v\n\n", fileMap)
+	fmt.Printf("\nparsed contents:\n%v\n\n", fileMap)
 
-	// Print out a value from the structure
-	third := fileMap[fields[0]]
-	fmt.Printf("%s:\n%v\n\n", fields[0], third)
+	// Print out each of the elements read from the file
+	// TODO: Change the element printing to not use recursion
+	recursivePrint("root", fileMap)
+}
 
-	currentStructure := fileMap[fields[0]]
-	for i := 1; i < len(fields); i++ {
-		// Use a type assertion to attempt to extract some type of value
-		localMap, isMap := currentStructure.(map[interface{}]interface{})
-		localSlice, isSlice := currentStructure.([]interface{})
+func recursivePrint(chain string, structure interface{}) {
+	// Use a type assertion to attempt to extract some type of value
+	localMap, isMap := structure.(map[interface{}]interface{})
+	localSlice, isSlice := structure.([]interface{})
+	localInteger, isInteger := structure.(int)
+	localString, isString := structure.(string)
 
-		// TODO: consider other cases here?
-		switch {
-		case isMap:
-			// This was a map of blank interfaces
-			currentStructure = localMap[fields[i]]
-			fmt.Printf("%s:\n%v\n\n", fields[i], currentStructure)
-		case isSlice:
-			// This was a slice of blank interfaces
-			value := localSlice[1]
-			fmt.Printf("value:\n%d\n\n", value)
+	switch {
+	case isMap:
+		for key, value := range localMap {
+			nextChain := chain + "_" + key.(string)
+			recursivePrint(nextChain, value)
 		}
+	case isSlice:
+		for i := 0; i < len(localSlice); i++ {
+			fmt.Printf("%s_value_%d:\n%v\n", chain, i, localSlice[i])
+		}
+	case isInteger:
+		fmt.Printf("%s_value:\n%v\n", chain, localInteger)
+	case isString:
+		fmt.Printf("%s_value:\n%v\n", chain, localString)
 	}
 }

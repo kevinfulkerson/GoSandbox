@@ -1,19 +1,19 @@
 ---
 first: First
 second:
-    second_first: 1
-    second_second:
+    first: 1
+    second:
         - 2
         - 3
-    second_third: 4
-    second_fourth: First
+    third: 4
+    fourth: Second
 third:
-    third_first:
-        third_first_first:
-        - 1
-        - 2
-        - 3
-        third_first_second: First
-    third_second: Second
-    third_third: 4
-fourth: Second
+    first:
+        first:
+        - 5
+        - 6
+        - 7
+        second: Third
+    second: Fourth
+    third: 8
+fourth: Fifth
