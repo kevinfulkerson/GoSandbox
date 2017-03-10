@@ -10,9 +10,13 @@ second:
 third:
     first:
         first:
-        - 5
-        - 6
-        - 7
+        - five:
+            - test
+            - more
+            - cases
+        - six: "6"
+        - seven: true
+        - eight: 3.14
         second: Third
     second: Fourth
     third: 8
