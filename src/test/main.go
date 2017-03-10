@@ -7,18 +7,25 @@ import (
 	"strconv"
 )
 
-var filename = "res/test.txt"
+var dataSourceFileName = "res/test.txt"
+var dataLookupFileName = "res/lookup.txt"
 
 func main() {
-	// Read in the file using the basic utility method
-	contents, err := ioutil.ReadFile(filename)
+	// Read in the data source file
+	dataSource, err := ioutil.ReadFile(dataSourceFileName)
+	if err != nil {
+		panic(err)
+	}
+
+	// Read in the lookup file
+	lookupValue, err := ioutil.ReadFile(dataLookupFileName)
 	if err != nil {
 		panic(err)
 	}
 
 	// Allocate a map to hold the contents, then decode the contents
 	fileMap := make(map[interface{}]interface{})
-	err = yaml.Unmarshal(contents, fileMap)
+	err = yaml.Unmarshal(dataSource, fileMap)
 	if err != nil {
 		panic(err)
 	}
@@ -31,18 +38,47 @@ func main() {
 
 	fmt.Print("\n\n")
 
-	// Search for a value in the map
-	keys := []string{"third", "first", "first", "0", "five", "2"}
-	value, success := findValueInMap(keys, fileMap)
-	if success {
-		fmt.Printf("first value = %s\n", value)
-	}
+	// TODO: Clean this up <---
+	lookupList := make([]string, 0)
+	tempString := ""
+	for i := 0; i < len(lookupValue); i++ {
+		switch lookupValue[i] {
+		case '/':
+			// Check if we have anything to insert, and if so, insert it.
+			if tempString != "" {
+				lookupList = append(lookupList, tempString)
+				tempString = ""
+			}
+		case '[':
+			// This is an array indication, so we need to insert the index
+			// after its parent. To do this, insert the parent first.
+			lookupList = append(lookupList, tempString)
 
-	// Search for another value in the map
-	keys = []string{"second", "second", "1"}
-	value, success = findValueInMap(keys, fileMap)
+			// Set the temp value to the empty string so the next '/' token
+			// we encounter (after the ending array indicator) won't cause an
+			// insert of a blank value in the array.
+			tempString = ""
+
+			// The parent is in now correctly, so insert the index value.
+			str := string(lookupValue[i+1])
+			lookupList = append(lookupList, str)
+
+			// TODO: Make this work with more than just 1-length indices
+			// Increment past the last index token.
+			i += 2
+		default:
+			if lookupValue[i] != '\n' {
+				tempString += string(lookupValue[i])
+			}
+		}
+	}
+	lookupList = append(lookupList, tempString)
+	// -------------> End
+
+	// Search for a value in the map
+	value, success := findValueInMap(lookupList, fileMap)
 	if success {
-		fmt.Printf("second value = %s\n", value)
+		fmt.Printf("value = %s\n", value)
 	}
 }
 
