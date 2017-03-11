@@ -38,42 +38,8 @@ func main() {
 
 	fmt.Print("\n\n")
 
-	// TODO: Clean this up <---
-	lookupList := make([]string, 0)
-	tempString := ""
-	for i := 0; i < len(lookupValue); i++ {
-		switch lookupValue[i] {
-		case '/':
-			// Check if we have anything to insert, and if so, insert it.
-			if tempString != "" {
-				lookupList = append(lookupList, tempString)
-				tempString = ""
-			}
-		case '[':
-			// This is an array indication, so we need to insert the index
-			// after its parent. To do this, insert the parent first.
-			lookupList = append(lookupList, tempString)
-
-			// Set the temp value to the empty string so the next '/' token
-			// we encounter (after the ending array indicator) won't cause an
-			// insert of a blank value in the array.
-			tempString = ""
-
-			// The parent is in now correctly, so insert the index value.
-			str := string(lookupValue[i+1])
-			lookupList = append(lookupList, str)
-
-			// TODO: Make this work with more than just 1-length indices
-			// Increment past the last index token.
-			i += 2
-		default:
-			if lookupValue[i] != '\n' {
-				tempString += string(lookupValue[i])
-			}
-		}
-	}
-	lookupList = append(lookupList, tempString)
-	// -------------> End
+	// Convert the read-in value to a list of elements to use for looking up a value
+	lookupList := parseLookupString(string(lookupValue))
 
 	// Search for a value in the map
 	value, success := findValueInMap(lookupList, fileMap)
@@ -155,4 +121,46 @@ func findValueInMap(keys []string, mapToSearch interface{}) (value string, found
 		}
 	}
 	return
+}
+
+// parseLookupString parses the provided string for elements to insert into a lookup array.
+// It returns the ordered values as a slice.
+// BUG(ksf) Does not use a proper interface, so it may have some strange interactions
+func parseLookupString(lookupString string) (lookupValues []string) {
+	tempString := ""
+	for i := 0; i < len(lookupString); i++ {
+		switch lookupString[i] {
+		case '/':
+			// Check if we have anything to insert, and if so, insert it.
+			if tempString != "" {
+				lookupValues = append(lookupValues, tempString)
+				tempString = ""
+			}
+		case '[':
+			// This is an array indication, so we need to insert the index
+			// after its parent. To do this, insert the parent first.
+			lookupValues = append(lookupValues, tempString)
+
+			// Set the temp value to the empty string so the next '/' token
+			// we encounter (after the ending array indicator) won't cause an
+			// insert of a blank value in the array.
+			tempString = ""
+
+			// The parent is in now correctly, so insert the index value.
+			str := ""
+			i++
+			for lookupString[i] != ']' {
+				str += string(lookupString[i])
+				i++
+			}
+
+			lookupValues = append(lookupValues, str)
+		default:
+			if lookupString[i] != '\n' {
+				tempString += string(lookupString[i])
+			}
+		}
+	}
+
+	return append(lookupValues, tempString)
 }
