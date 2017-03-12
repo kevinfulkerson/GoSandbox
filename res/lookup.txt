@@ -1,1 +1,1 @@
-/inherited/second/second[0]
+@id/inherited/second/second/test

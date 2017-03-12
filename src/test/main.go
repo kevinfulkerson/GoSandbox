@@ -34,17 +34,20 @@ func main() {
 	fmt.Printf("\nparsed contents:\n%v\n\n", fileMap)
 
 	// Print out each of the elements read from the file
-	recursivePrint("root", fileMap)
+	recursivePrint("", fileMap)
 
 	fmt.Print("\n\n")
 
 	// Convert the read-in value to a list of elements to use for looking up a value
 	lookupList := parseLookupString(string(lookupValue))
+	for _, val := range lookupList {
+		fmt.Printf("val = %v\n", val)
+	}
 
 	// Search for a value in the map
 	value, success := findValueInMap(lookupList, fileMap)
 	if success {
-		fmt.Printf("value = %s\n", value)
+		fmt.Printf("\nvalue = %s\n", value)
 	}
 }
 
@@ -56,7 +59,7 @@ func recursivePrint(chain string, structure interface{}) {
 	switch {
 	case isMap:
 		for key, value := range localMap {
-			nextChain := chain + "_" + fmt.Sprintf("%v", key)
+			nextChain := chain + "/" + fmt.Sprintf("%v", key)
 			recursivePrint(nextChain, value)
 		}
 	case isSlice:
@@ -65,7 +68,7 @@ func recursivePrint(chain string, structure interface{}) {
 			recursivePrint(nextChain, localSlice[i])
 		}
 	default:
-		fmt.Printf("%s_value:\n%v\n", chain, structure)
+		fmt.Printf("%s:\n%v\n", chain, structure)
 	}
 }
 
@@ -81,7 +84,6 @@ func findValueInMap(keys []string, mapToSearch interface{}) (value string, found
 	for i := 0; i < len(keys); i++ {
 		localMap, isMap := localStructure.(map[interface{}]interface{})
 		localSlice, isSlice := localStructure.([]interface{})
-
 		switch {
 		case isMap:
 			localStructure = localMap[keys[i]]
@@ -128,35 +130,60 @@ func findValueInMap(keys []string, mapToSearch interface{}) (value string, found
 // BUG(ksf) Does not use a proper interface, so it may have some strange interactions
 func parseLookupString(lookupString string) (lookupValues []string) {
 	tempString := ""
+	elementStarted := false
 	for i := 0; i < len(lookupString); i++ {
 		switch lookupString[i] {
+		case '@':
+			// In most cases, this will be the start of an element id indication, so
+			// look for the rest of the indicator. The indicator is currently:
+			// @id
+			addToString := true
+			if i+2 <= len(lookupString) {
+				if lookupString[i+1] == 'i' && lookupString[i+2] == 'd' {
+					addToString = false
+					elementStarted = true
+					i += 2
+				}
+			}
+
+			if addToString {
+				tempString += string(lookupString[i])
+			}
 		case '/':
-			// Check if we have anything to insert, and if so, insert it.
-			if tempString != "" {
-				lookupValues = append(lookupValues, tempString)
-				tempString = ""
+			if elementStarted {
+				// Check if we have anything to insert, and if so, insert it.
+				if tempString != "" {
+					lookupValues = append(lookupValues, tempString)
+					tempString = ""
+				}
+			} else {
+				tempString += string(lookupString[i])
 			}
 		case '[':
-			// This is an array indication, so we need to insert the index
-			// after its parent. To do this, insert the parent first.
-			lookupValues = append(lookupValues, tempString)
+			if elementStarted {
+				// This is an array indication, so we need to insert the index
+				// after its parent. To do this, insert the parent first.
+				lookupValues = append(lookupValues, tempString)
 
-			// Set the temp value to the empty string so the next '/' token
-			// we encounter (after the ending array indicator) won't cause an
-			// insert of a blank value in the array.
-			tempString = ""
+				// Set the temp value to the empty string so the next '/' token
+				// we encounter (after the ending array indicator) won't cause an
+				// insert of a blank value in the array.
+				tempString = ""
 
-			// The parent is in now correctly, so insert the index value.
-			str := ""
-			i++
-			for lookupString[i] != ']' {
-				str += string(lookupString[i])
+				// The parent is in correctly, so begin inserting the index value.
+				str := ""
 				i++
-			}
+				for lookupString[i] != ']' {
+					str += string(lookupString[i])
+					i++
+				}
 
-			lookupValues = append(lookupValues, str)
+				lookupValues = append(lookupValues, str)
+			} else {
+				tempString += string(lookupString[i])
+			}
 		default:
-			if lookupString[i] != '\n' {
+			if lookupString[i] != '\n' && lookupString[i] != '\r' {
 				tempString += string(lookupString[i])
 			}
 		}

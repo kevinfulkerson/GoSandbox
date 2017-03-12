@@ -36,4 +36,4 @@ inherited:
     second:
         <<: *second_base
         second:
-            - 5
+            test: test
