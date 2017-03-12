@@ -65,7 +65,7 @@ func recursivePrint(chain string, structure interface{}) {
 			recursivePrint(nextChain, localSlice[i])
 		}
 	default:
-		fmt.Printf("%s_bool:\n%v\n", chain, structure)
+		fmt.Printf("%s_value:\n%v\n", chain, structure)
 	}
 }
 

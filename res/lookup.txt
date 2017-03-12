@@ -1,1 +1,1 @@
-/third/first/first[0]/five[10]
+/inherited/second/second[0]
