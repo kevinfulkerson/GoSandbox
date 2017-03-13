@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"go-pkg-optarg"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"strconv"
@@ -11,6 +12,9 @@ var dataSourceFileName = "res/test.txt"
 var dataLookupFileName = "res/lookup.txt"
 
 func main() {
+	// Read arguments
+	parseArguments()
+
 	// Read in the data source file
 	dataSource, err := ioutil.ReadFile(dataSourceFileName)
 	if err != nil {
@@ -190,4 +194,38 @@ func parseLookupString(lookupString string) (lookupValues []string) {
 	}
 
 	return append(lookupValues, tempString)
+}
+
+// parseArguments parses the command-line arguments for the current execution of the program and sets the
+// internal state of the program to the configured values.
+func parseArguments() {
+	optarg.Add("i",
+		"inputDirectory",
+		"The path to the directory to draw input files from.",
+		"./res/input/")
+	optarg.Add("o",
+		"outputDirectory",
+		"The path to the root directory to write output files to.",
+		"./res/output/")
+	optarg.Add("r",
+		"recipeDirectory",
+		"The path to the directory to draw recipe files from.",
+		"./res/recipes/")
+	optarg.Add("d",
+		"dataDirectory",
+		"The path to the directory to draw global data files from.",
+		"./res/data/")
+
+	// For now, just hard-code the file name to use. Eventually, this will just go through
+	// all of the files in the directory to generate output.
+	for opt := range optarg.Parse() {
+		switch opt.ShortName {
+		case "i":
+			dataLookupFileName = opt.String() + "lookup.txt"
+		case "o":
+		case "r":
+		case "d":
+			dataSourceFileName = opt.String() + "test.txt"
+		}
+	}
 }
