@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"go-pkg-optarg"
 	"gopkg.in/yaml.v2"
@@ -23,23 +22,13 @@ func main() {
 	parseArguments()
 
 	// Read in the data source file
-	location, err := dataFileMap.getFileLocation(0)
-	if err != nil {
-		panic(err)
-	}
-
-	dataSource, err := ioutil.ReadFile(location)
+	dataSource, err := ioutil.ReadFile(dataFileMap.getFileLocation(0))
 	if err != nil {
 		panic(err)
 	}
 
 	// Read in the lookup file
-	location, err = inputFileMap.getFileLocation(0)
-	if err != nil {
-		panic(err)
-	}
-
-	lookupValue, err := ioutil.ReadFile(location)
+	lookupValue, err := ioutil.ReadFile(inputFileMap.getFileLocation(0))
 	if err != nil {
 		panic(err)
 	}
@@ -261,9 +250,11 @@ func parseArguments() {
 	}
 }
 
+// mapFiles places the files of a directory into a FileMapping struct with appropriate working directory.
+// It is tolerant of nested directories, and handles them using recursion.
+// It returns an error code if a directory in the hierarchy cannot be read.
 func (fileMap *FileMapping) mapFiles(files []os.FileInfo, directory string) error {
 	for _, file := range files {
-		fmt.Print("here1\n")
 		if file.IsDir() {
 			innerFiles, err := ioutil.ReadDir(file.Name())
 			if err != nil {
@@ -271,8 +262,12 @@ func (fileMap *FileMapping) mapFiles(files []os.FileInfo, directory string) erro
 			}
 			fileMap.mapFiles(innerFiles, directory+file.Name())
 		} else {
-			// TODO: ensure working directory ends in a '/'
 			fileMap.files = append(fileMap.files, file)
+
+			if directory[len(directory)-1] != '/' {
+				directory += "/"
+			}
+
 			fileMap.workingDirectory = directory
 		}
 	}
@@ -280,10 +275,8 @@ func (fileMap *FileMapping) mapFiles(files []os.FileInfo, directory string) erro
 	return nil
 }
 
-func (fileMap *FileMapping) getFileLocation(fileIndex int) (string, error) {
-	if fileMap.files[fileIndex] == nil {
-		return "", errors.New("Index out of bounds")
-	} else {
-		return fileMap.workingDirectory + fileMap.files[fileIndex].Name(), nil
-	}
+// getFileLocation generates a string for the file at the specified index in the map that can be used to locate that
+// file.
+func (fileMap *FileMapping) getFileLocation(fileIndex int) string {
+	return fileMap.workingDirectory + fileMap.files[fileIndex].Name()
 }
