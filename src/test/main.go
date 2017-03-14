@@ -1,28 +1,45 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"go-pkg-optarg"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"os"
 	"strconv"
 )
 
-var dataSourceFileName = "res/test.txt"
-var dataLookupFileName = "res/lookup.txt"
+type FileMapping struct {
+	files            []os.FileInfo
+	workingDirectory string
+}
+
+var inputFileMap FileMapping
+var dataFileMap FileMapping
 
 func main() {
 	// Read arguments
 	parseArguments()
 
 	// Read in the data source file
-	dataSource, err := ioutil.ReadFile(dataSourceFileName)
+	location, err := dataFileMap.getFileLocation(0)
+	if err != nil {
+		panic(err)
+	}
+
+	dataSource, err := ioutil.ReadFile(location)
 	if err != nil {
 		panic(err)
 	}
 
 	// Read in the lookup file
-	lookupValue, err := ioutil.ReadFile(dataLookupFileName)
+	location, err = inputFileMap.getFileLocation(0)
+	if err != nil {
+		panic(err)
+	}
+
+	lookupValue, err := ioutil.ReadFile(location)
 	if err != nil {
 		panic(err)
 	}
@@ -216,16 +233,57 @@ func parseArguments() {
 		"The path to the directory to draw global data files from.",
 		"./res/data/")
 
-	// For now, just hard-code the file name to use. Eventually, this will just go through
-	// all of the files in the directory to generate output.
 	for opt := range optarg.Parse() {
 		switch opt.ShortName {
 		case "i":
-			dataLookupFileName = opt.String() + "lookup.txt"
+			files, err := ioutil.ReadDir(opt.String())
+			if err != nil {
+				panic(err)
+			}
+
+			err = inputFileMap.mapFiles(files, opt.String())
+			if err != nil {
+				panic(err)
+			}
 		case "o":
 		case "r":
 		case "d":
-			dataSourceFileName = opt.String() + "test.txt"
+			files, err := ioutil.ReadDir(opt.String())
+			if err != nil {
+				panic(err)
+			}
+
+			err = dataFileMap.mapFiles(files, opt.String())
+			if err != nil {
+				panic(err)
+			}
 		}
+	}
+}
+
+func (fileMap *FileMapping) mapFiles(files []os.FileInfo, directory string) error {
+	for _, file := range files {
+		fmt.Print("here1\n")
+		if file.IsDir() {
+			innerFiles, err := ioutil.ReadDir(file.Name())
+			if err != nil {
+				return err
+			}
+			fileMap.mapFiles(innerFiles, directory+file.Name())
+		} else {
+			// TODO: ensure working directory ends in a '/'
+			fileMap.files = append(fileMap.files, file)
+			fileMap.workingDirectory = directory
+		}
+	}
+
+	return nil
+}
+
+func (fileMap *FileMapping) getFileLocation(fileIndex int) (string, error) {
+	if fileMap.files[fileIndex] == nil {
+		return "", errors.New("Index out of bounds")
+	} else {
+		return fileMap.workingDirectory + fileMap.files[fileIndex].Name(), nil
 	}
 }
