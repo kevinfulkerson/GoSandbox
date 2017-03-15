@@ -16,6 +16,7 @@ type FileMapping struct {
 
 var inputFileMap FileMapping
 var dataFileMap FileMapping
+var recipeFileMap FileMapping
 
 func main() {
 	// Read arguments
@@ -235,7 +236,17 @@ func parseArguments() {
 				panic(err)
 			}
 		case "o":
+
 		case "r":
+			files, err := ioutil.ReadDir(opt.String())
+			if err != nil {
+				panic(err)
+			}
+
+			err = recipeFileMap.mapFiles(files, opt.String())
+			if err != nil {
+				panic(err)
+			}
 		case "d":
 			files, err := ioutil.ReadDir(opt.String())
 			if err != nil {
@@ -256,11 +267,18 @@ func parseArguments() {
 func (fileMap *FileMapping) mapFiles(files []os.FileInfo, directory string) error {
 	for _, file := range files {
 		if file.IsDir() {
-			innerFiles, err := ioutil.ReadDir(file.Name())
+			if directory[len(directory)-1] != '/' {
+				directory += "/"
+			}
+
+			directory += file.Name()
+
+			innerFiles, err := ioutil.ReadDir(directory)
 			if err != nil {
 				return err
 			}
-			fileMap.mapFiles(innerFiles, directory+file.Name())
+
+			fileMap.mapFiles(innerFiles, directory)
 		} else {
 			fileMap.files = append(fileMap.files, file)
 
