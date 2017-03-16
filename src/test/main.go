@@ -136,9 +136,12 @@ func findValueInMap(keys []string, mapToSearch interface{}) (value string, found
 	return
 }
 
-// parseLookupString parses the provided string for elements to insert into a lookup array.
-// It returns the ordered values as a slice.
-// BUG(ksf) Does not use a proper interface, so it may have some strange interactions
+// parseLookupString parses the provided string for an id element to use for creating a lookup array.
+// It returns the first set of ordered values as a slice, or the entire string if no lookup value was found.
+// TODO: Incorporate this searching into a parsing utility that will read lines and parse out each element (CONT.)
+// as it is encountered, lookup the correct value and then insert that value as a string into the original
+// parsed contents. This should also allow for looking up local values simply using a @id:local/.. value,
+// and external values using @id:/.. value.
 func parseLookupString(lookupString string) (lookupValues []string) {
 	tempString := ""
 	elementStarted := false
@@ -147,13 +150,13 @@ func parseLookupString(lookupString string) (lookupValues []string) {
 		case '@':
 			// In most cases, this will be the start of an element id indication, so
 			// look for the rest of the indicator. The indicator is currently:
-			// @id
+			// @id:
 			addToString := true
-			if i+2 <= len(lookupString) {
-				if lookupString[i+1] == 'i' && lookupString[i+2] == 'd' {
+			if i+3 <= len(lookupString) {
+				if lookupString[i+1] == 'i' && lookupString[i+2] == 'd' && lookupString[i+3] == ':' {
 					addToString = false
 					elementStarted = true
-					i += 2
+					i += 3
 				}
 			}
 
