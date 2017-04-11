@@ -5,38 +5,61 @@ import (
 	"go-pkg-optarg"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"os"
 	"strconv"
 )
 
-type FileMapping struct {
-	files            []os.FileInfo
-	workingDirectory string
-}
-
-var inputFileMap FileMapping
-var dataFileMap FileMapping
-var recipeFileMap FileMapping
+var inputFileMap *DataMap
+var dataFileMap *DataMap
+var recipeFileMap *DataMap
 
 func main() {
+	// Initialize maps
+	inputFileMap = NewDataMap()
+	dataFileMap = NewDataMap()
+	recipeFileMap = NewDataMap()
+
 	// Read arguments
 	parseArguments()
 
-	// Read in the data source file
-	dataSource, err := ioutil.ReadFile(dataFileMap.getFileLocation(0))
-	if err != nil {
-		panic(err)
+	// Allocate some space to this variable, it can expand
+	dataSource := make([]byte, 100)
+
+	// Read in the data source files
+	for directory, directoryMap := range dataFileMap.Mapping {
+		for _, file := range directoryMap.Files {
+			// For now, just check if its the correct file
+			if file.Name() == "test.txt" {
+				ds, err := ioutil.ReadFile(directory + file.Name())
+				if err != nil {
+					panic(err)
+				}
+
+				dataSource = ds
+			}
+		}
 	}
 
+	// Allocate some space to this variable, it can expand
+	lookupValue := make([]byte, 100)
+
 	// Read in the lookup file
-	lookupValue, err := ioutil.ReadFile(inputFileMap.getFileLocation(0))
-	if err != nil {
-		panic(err)
+	for directory, directoryMap := range inputFileMap.Mapping {
+		for _, file := range directoryMap.Files {
+			// For now, just check if its the correct file
+			if file.Name() == "lookup.txt" {
+				lv, err := ioutil.ReadFile(directory + file.Name())
+				if err != nil {
+					panic(err)
+				}
+
+				lookupValue = lv
+			}
+		}
 	}
 
 	// Allocate a map to hold the contents, then decode the contents
 	fileMap := make(map[interface{}]interface{})
-	err = yaml.Unmarshal(dataSource, fileMap)
+	err := yaml.Unmarshal(dataSource, fileMap)
 	if err != nil {
 		panic(err)
 	}
@@ -50,7 +73,7 @@ func main() {
 	fmt.Print("\n\n")
 
 	// Convert the read-in value to a list of elements to use for looking up a value
-	lookupList := parseLookupString(string(lookupValue))
+	lookupList := ParseLookupString(string(lookupValue))
 	for _, val := range lookupList {
 		fmt.Printf("val = %v\n", val)
 	}
@@ -136,76 +159,6 @@ func findValueInMap(keys []string, mapToSearch interface{}) (value string, found
 	return
 }
 
-// parseLookupString parses the provided string for an id element to use for creating a lookup array.
-// It returns the first set of ordered values as a slice, or the entire string if no lookup value was found.
-// TODO: Incorporate this searching into a parsing utility that will read lines and parse out each element (CONT.)
-// as it is encountered, lookup the correct value and then insert that value as a string into the original
-// parsed contents. This should also allow for looking up local values simply using a @id:local/.. value,
-// and external values using @id:/.. value.
-func parseLookupString(lookupString string) (lookupValues []string) {
-	tempString := ""
-	elementStarted := false
-	for i := 0; i < len(lookupString); i++ {
-		switch lookupString[i] {
-		case '@':
-			// In most cases, this will be the start of an element id indication, so
-			// look for the rest of the indicator. The indicator is currently:
-			// @id:
-			addToString := true
-			if i+3 <= len(lookupString) {
-				if lookupString[i+1] == 'i' && lookupString[i+2] == 'd' && lookupString[i+3] == ':' {
-					addToString = false
-					elementStarted = true
-					i += 3
-				}
-			}
-
-			if addToString {
-				tempString += string(lookupString[i])
-			}
-		case '/':
-			if elementStarted {
-				// Check if we have anything to insert, and if so, insert it.
-				if tempString != "" {
-					lookupValues = append(lookupValues, tempString)
-					tempString = ""
-				}
-			} else {
-				tempString += string(lookupString[i])
-			}
-		case '[':
-			if elementStarted {
-				// This is an array indication, so we need to insert the index
-				// after its parent. To do this, insert the parent first.
-				lookupValues = append(lookupValues, tempString)
-
-				// Set the temp value to the empty string so the next '/' token
-				// we encounter (after the ending array indicator) won't cause an
-				// insert of a blank value in the array.
-				tempString = ""
-
-				// The parent is in correctly, so begin inserting the index value.
-				str := ""
-				i++
-				for lookupString[i] != ']' {
-					str += string(lookupString[i])
-					i++
-				}
-
-				lookupValues = append(lookupValues, str)
-			} else {
-				tempString += string(lookupString[i])
-			}
-		default:
-			if lookupString[i] != '\n' && lookupString[i] != '\r' {
-				tempString += string(lookupString[i])
-			}
-		}
-	}
-
-	return append(lookupValues, tempString)
-}
-
 // parseArguments parses the command-line arguments for the current execution of the program and sets the
 // internal state of the program to the configured values.
 func parseArguments() {
@@ -229,75 +182,22 @@ func parseArguments() {
 	for opt := range optarg.Parse() {
 		switch opt.ShortName {
 		case "i":
-			files, err := ioutil.ReadDir(opt.String())
-			if err != nil {
-				panic(err)
-			}
-
-			err = inputFileMap.mapFiles(files, opt.String())
+			err := inputFileMap.MapFiles(opt.String())
 			if err != nil {
 				panic(err)
 			}
 		case "o":
 
 		case "r":
-			files, err := ioutil.ReadDir(opt.String())
-			if err != nil {
-				panic(err)
-			}
-
-			err = recipeFileMap.mapFiles(files, opt.String())
+			err := recipeFileMap.MapFiles(opt.String())
 			if err != nil {
 				panic(err)
 			}
 		case "d":
-			files, err := ioutil.ReadDir(opt.String())
-			if err != nil {
-				panic(err)
-			}
-
-			err = dataFileMap.mapFiles(files, opt.String())
+			err := dataFileMap.MapFiles(opt.String())
 			if err != nil {
 				panic(err)
 			}
 		}
 	}
-}
-
-// mapFiles places the files of a directory into a FileMapping struct with appropriate working directory.
-// It is tolerant of nested directories, and handles them using recursion.
-// It returns an error code if a directory in the hierarchy cannot be read.
-func (fileMap *FileMapping) mapFiles(files []os.FileInfo, directory string) error {
-	for _, file := range files {
-		if file.IsDir() {
-			if directory[len(directory)-1] != '/' {
-				directory += "/"
-			}
-
-			directory += file.Name()
-
-			innerFiles, err := ioutil.ReadDir(directory)
-			if err != nil {
-				return err
-			}
-
-			fileMap.mapFiles(innerFiles, directory)
-		} else {
-			fileMap.files = append(fileMap.files, file)
-
-			if directory[len(directory)-1] != '/' {
-				directory += "/"
-			}
-
-			fileMap.workingDirectory = directory
-		}
-	}
-
-	return nil
-}
-
-// getFileLocation generates a string for the file at the specified index in the map that can be used to locate that
-// file.
-func (fileMap *FileMapping) getFileLocation(fileIndex int) string {
-	return fileMap.workingDirectory + fileMap.files[fileIndex].Name()
 }
